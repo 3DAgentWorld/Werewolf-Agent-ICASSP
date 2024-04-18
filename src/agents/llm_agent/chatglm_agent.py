@@ -11,7 +11,7 @@ import warnings
 from typing import List, Any
 
 from ..abs_agent import Agent, MessageSender
-from ..agent_framework import CGAgent, SAPARAgentForWerewolf, SAPARAgentForAvalon, GraphThoughtAgent, GraphCGAgent
+from ..agent_framework import CGAgent, SAPARAgentForWerewolf, SAPARAgentForAvalon, GraphThoughtAgent, GraphCGAgent, CodeActAgent
 
 
 class ChatGLMMessageSender(MessageSender):
@@ -29,7 +29,7 @@ class ChatGLMMessageSender(MessageSender):
                 f"temperature has to be a strictly positive float (got temperature = {temperature}, now temperater has set to 0.01 to avoid possible error.)")
             temperature = 0.01
         user_message, history, inputs_length = self.to_chatglm_input_format(messages)
-        output, history = self.model.chat(self.tokenizer, user_message, history=history, max_length=inputs_length + 256,
+        output, history = self.model.chat(self.tokenizer, user_message, history=history, max_length=inputs_length + 512,
                                           temperature=temperature)
         return output
 
@@ -116,6 +116,32 @@ class ChatGLM_GraphCGAgent(GraphCGAgent, ChatGLMMessageSender):
                               retrival_model,
                               freshness_k, informativeness_n, experience_window, previous_exp_pool, output_dir,
                               **kwargs)
+        ChatGLMMessageSender.__init__(self, model, tokenizer, temperature, **kwargs)
+
+    def send_message(self, messages: List[dict], model: Any = None, tokenizer: Any = None,
+                     temperature: float = None) -> str:
+        return ChatGLMMessageSender.send_message(self, messages, model, tokenizer, temperature)
+
+
+class ChatGLM_CodeActAgent(CodeActAgent, ChatGLMMessageSender):
+    def __init__(self, name: str, role: str, rule_role_prompt: str,
+                 private_information: str, current_team_number: int,
+                 code_generate_prompt: str, output_dir: str, total_player_number: int,
+                 good_number: int, bad_number: int, k: int, informativeness_prompt: str,
+                 generate_response_prompt: str, generate_leader_response_prompt: str,
+                 informativeness_n: int, select_question_prompt: str, question_list: list,
+                 ask_question_prompt: str, retrieval_model, generate_answer_prompt: str,
+                 reflection_prompt: str,
+                 model, tokenizer, temperature,
+                 use_summary: bool = False, **kwargs):
+        CodeActAgent.__init__(self, name, role, rule_role_prompt,
+                              private_information, current_team_number,
+                              code_generate_prompt, output_dir, total_player_number,
+                              good_number, bad_number, k, informativeness_prompt,
+                              generate_response_prompt, generate_leader_response_prompt,
+                              informativeness_n, select_question_prompt, question_list, ask_question_prompt,
+                              retrieval_model, generate_answer_prompt, reflection_prompt,
+                              use_summary, **kwargs)
         ChatGLMMessageSender.__init__(self, model, tokenizer, temperature, **kwargs)
 
     def send_message(self, messages: List[dict], model: Any = None, tokenizer: Any = None,

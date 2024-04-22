@@ -1,4 +1,5 @@
 import torch
+import sys
 from sentence_transformers import util
 import json
 import re
@@ -105,13 +106,16 @@ class CodeActAgent(Agent):
                 r_t, conversations = self.retrival_memory(conversations)
         else:
             r_t = "None"
+        # print("Retrieval memory: ")
+        # print(r_t)
+        # print("\n")
         if "Please answer the numbers of the players you selected." in message:
             self.code_runtime_out = 5
             current_number = re.search(r"(\d+)", message)
             self.current_team_number = current_number.group(1)
             self.generate_code_program()
             prompt = self.generate_leader_response_prompt.format(
-                self.phase, self.name, self.role, message, self.teams
+                self.phase, self.name, self.role, self.teams, message
             )
         else:
             prompt = self.generate_response_prompt.format(
@@ -147,7 +151,7 @@ class CodeActAgent(Agent):
                 f"temperature has to be a strictly positive float (got temperature = {temperature}, now temperater has set to 0.01 to avoid possible error.)")
             temperature = 0.01
         inputs = self.to_llama_input_format(messages)
-        input_ids = self.llama_tokenizer(inputs, return_tensors="pt", add_special_tokens=False).input_ids.to("cuda")
+        input_ids = self.llama_tokenizer(inputs, return_tensors="pt", add_special_tokens=False).input_ids.to("cuda:1")
         generate_input = {
             "input_ids": input_ids,
             "max_new_tokens": 512,
@@ -476,43 +480,22 @@ class CodeActAgentforWerewolf(CodeActAgent):
                  reflection_prompt: str, llama_model, llama_tokenizer,
                  use_summary: bool = False,
                  **kwargs):
-        super().__init__(name=name, role=role, **kwargs)
-        self.total_player_number = total_player_number
-        self.good_number = good_number  # number of good players
-        self.bad_number = bad_number
-        self.rule_role_prompt = rule_role_prompt
-        self.informativeness_prompt = informativeness_prompt
-        self.generate_response_prompt = generate_response_prompt
-        self.generate_leader_response_prompt = generate_leader_response_prompt
-        self.select_question_prompt = select_question_prompt
-        self.ask_question_prompt = ask_question_prompt
-        self.generate_answer_prompt = generate_answer_prompt
-        self.reflection_prompt = reflection_prompt
-
-        self.private_information = private_information
+        super().__init__(name=name, role=role, rule_role_prompt=rule_role_prompt,private_information=private_information,
+                         current_team_number=current_team_number, code_generate_prompt=code_generate_prompt,
+                         output_dir=output_dir, total_player_number=total_player_number, good_number=good_number,
+                         bad_number=bad_number, k=k, informativeness_prompt=informativeness_prompt,
+                         generate_response_prompt=generate_response_prompt, generate_leader_response_prompt=generate_leader_response_prompt,
+                         informativeness_n=informativeness_n, select_question_prompt=select_question_prompt,
+                         question_list=question_list, ask_question_prompt=ask_question_prompt,
+                         retrieval_model=retrieval_model, generate_answer_prompt=generate_answer_prompt,
+                         reflection_prompt=reflection_prompt, llama_model=llama_model, llama_tokenizer=llama_tokenizer,
+                         use_summary=use_summary, **kwargs)
         self.public_information = ""
-
-        self.phase = "{}-th {}"  # {t}-th {day_or_night}
-        self.memory = {"name": [], "message": [], "informativeness": []}
-        self.phase_memory = {}
-        self.summary = {}
-        self.question_list = question_list
-        self.retrival_model = retrieval_model
-
-        self.teams = []  # list of possible good people
-        self.current_team_number = 1  # how many people are in the quest
-        self.code_generate_prompt = code_generate_prompt
-        self.output_dir = output_dir
-
-        self.k = k  # memory window size
-        self.use_summary = use_summary
         self.current_day_number = 0  # day number
         self.informativeness_n = informativeness_n
         self.T = 3
-
         self.code_runtime_out = 5
-        self.llama_model = llama_model
-        self.llama_tokenizer = llama_tokenizer
+        self.bad_player = None
 
     def step(self, message: str) -> str:
         phase = message.split("|")[0]
@@ -555,11 +538,12 @@ class CodeActAgentforWerewolf(CodeActAgent):
         else:
             r_t = "None"
         if ("are asked to choose which of the players should be voted for eliminating based on the discussion"
-                or "continue voting the players should be killed based on the discussion" in message):
+                in message or "continue voting the players should be killed based on the discussion" in message):
+            # print("Start Coding generating... \n")
             self.code_runtime_out = 5
             self.generate_code_program()
             prompt = self.generate_leader_response_prompt.format(
-                self.phase, self.name, self.role, message, self.teams
+                self.phase, self.name, self.role, self.bad_player, message
             )
         else:
             prompt = self.generate_response_prompt.format(
@@ -592,7 +576,7 @@ class CodeActAgentforWerewolf(CodeActAgent):
             pattern = r"(.+) died last night"
             seen = re.search(pattern, message)
             if seen:
-                self.public_information += "Day " + str(self.current_day_number) + ": " + seen.group(1) + "died last night\n"
+                self.public_information += "Day " + str(self.current_day_number) + ": " + seen.group(1) + " died last night\n"
                 self.current_day_number += 1
         elif "It was a peaceful night and no one died" in message:
             self.public_information += "Day " + str(self.current_day_number) + " no one died last night\n"
@@ -603,7 +587,7 @@ class CodeActAgentforWerewolf(CodeActAgent):
         print(self.public_information)
         prompt = self.code_generate_prompt.format(
             self.total_player_number, self.good_number, self.bad_number, self.private_information,
-            self.public_information, self.current_team_number
+            self.public_information
         )
         if error_message:
             prompt += ("\n\nThere was an error in last generation, please regenerate. Error message: " + error_message)
@@ -640,7 +624,7 @@ class CodeActAgentforWerewolf(CodeActAgent):
         conversations.append({"role": "user", "content": example_prompt})
         conversations.append({"role": "assistant", "content": example})
         conversations.append({"role": "user", "content": prompt})
-        output = self.send_message(conversations, temperature=0.01)
+        output = self.send_llama_message(conversations, temperature=0.01)
         # print("Output: " + output + "\n")
         # pattern = "Action Output:"
         # match = re.search(pattern, output)
@@ -654,5 +638,41 @@ class CodeActAgentforWerewolf(CodeActAgent):
         # print("Code: " + match.group().strip() if match else output)
         print("Extracted code: " + extracted_code + "\n")
         # result = self.execute_code_program(match.group().strip() if match else output)
-        if int(self.current_quest_number) != 1:
-            result = self.execute_code_program(extracted_code)
+        result = self.execute_code_program(extracted_code)
+
+    def execute_code_program(self, program: str):
+        try:
+            output = []
+            # sys.stdout = output
+            # exec(program)
+            # sys.stdout = sys.__stdout__
+            # if output:
+            #     self.bad_player = int(output[0])
+            #     return self.bad_player
+            pattern = r"bad_player = (\d)"
+            player_index = re.search(pattern, program)
+            player_index = int(player_index.group(1))
+            if player_index > 0 and player_index < 8:
+                self.bad_player = player_index
+                return self.bad_player  # a integer
+            else:
+                print("No valid player number.")
+                return None
+        except Exception as e:
+            print(f"Error executing code: {e}")
+            # 5 regenerate attempts
+            self.code_runtime_out -= 1
+            if self.code_runtime_out == 0:
+                pass
+            else:
+                self.generate_code_program(error_message=str(e))
+
+    def send_message(self, messages: List[dict], model: Any = None, tokenizer: Any = None,
+                      temperature: float = None) -> str:
+        raise NotImplementedError("Interaction with LLM is not implemented in agent framework class.")
+
+
+class CodeActAgentforAvalon(CodeActAgent):
+    """
+        just a copy
+    """

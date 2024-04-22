@@ -11,7 +11,8 @@ import warnings
 from typing import List, Any
 
 from ..abs_agent import Agent, MessageSender
-from ..agent_framework import CGAgent, SAPARAgentForWerewolf, SAPARAgentForAvalon, GraphThoughtAgent, GraphCGAgent, CodeActAgent
+from ..agent_framework import (CGAgent, SAPARAgentForWerewolf, SAPARAgentForAvalon, GraphThoughtAgent, GraphCGAgent,
+                               CodeActAgent, CodeActAgentforWerewolf, CodeActAgentforAvalon)
 
 
 class ChatGLMMessageSender(MessageSender):
@@ -131,7 +132,7 @@ class ChatGLM_CodeActAgent(CodeActAgent, ChatGLMMessageSender):
                  generate_response_prompt: str, generate_leader_response_prompt: str,
                  informativeness_n: int, select_question_prompt: str, question_list: list,
                  ask_question_prompt: str, retrieval_model, generate_answer_prompt: str,
-                 reflection_prompt: str,
+                 reflection_prompt: str, llama_model, llama_tokenizer,
                  model, tokenizer, temperature,
                  use_summary: bool = False, **kwargs):
         CodeActAgent.__init__(self, name, role, rule_role_prompt,
@@ -141,6 +142,61 @@ class ChatGLM_CodeActAgent(CodeActAgent, ChatGLMMessageSender):
                               generate_response_prompt, generate_leader_response_prompt,
                               informativeness_n, select_question_prompt, question_list, ask_question_prompt,
                               retrieval_model, generate_answer_prompt, reflection_prompt,
+                              llama_model, llama_tokenizer,
+                              use_summary, **kwargs)
+        ChatGLMMessageSender.__init__(self, model, tokenizer, temperature, **kwargs)
+
+    def send_message(self, messages: List[dict], model: Any = None, tokenizer: Any = None,
+                     temperature: float = None) -> str:
+        return ChatGLMMessageSender.send_message(self, messages, model, tokenizer, temperature)
+
+
+class ChatGLM_CodeActAgent_forAvalon(CodeActAgentforAvalon, ChatGLMMessageSender):
+    def __init__(self, name: str, role: str, rule_role_prompt: str,
+                 private_information: str, current_team_number: int,
+                 code_generate_prompt: str, output_dir: str, total_player_number: int,
+                 good_number: int, bad_number: int, k: int, informativeness_prompt: str,
+                 generate_response_prompt: str, generate_leader_response_prompt: str,
+                 informativeness_n: int, select_question_prompt: str, question_list: list,
+                 ask_question_prompt: str, retrieval_model, generate_answer_prompt: str,
+                 reflection_prompt: str, llama_model, llama_tokenizer,
+                 model, tokenizer, temperature,
+                 use_summary: bool = False, **kwargs):
+        CodeActAgentforAvalon.__init__(self, name, role, rule_role_prompt,
+                              private_information, current_team_number,
+                              code_generate_prompt, output_dir, total_player_number,
+                              good_number, bad_number, k, informativeness_prompt,
+                              generate_response_prompt, generate_leader_response_prompt,
+                              informativeness_n, select_question_prompt, question_list, ask_question_prompt,
+                              retrieval_model, generate_answer_prompt, reflection_prompt,
+                              llama_model, llama_tokenizer,
+                              use_summary, **kwargs)
+        ChatGLMMessageSender.__init__(self, model, tokenizer, temperature, **kwargs)
+
+    def send_message(self, messages: List[dict], model: Any = None, tokenizer: Any = None,
+                     temperature: float = None) -> str:
+        return ChatGLMMessageSender.send_message(self, messages, model, tokenizer, temperature)
+
+
+class ChatGLM_CodeActAgent_forWerewolf(CodeActAgentforWerewolf, ChatGLMMessageSender):
+    def __init__(self, name: str, role: str, rule_role_prompt: str,
+                 private_information: str, current_team_number: int,
+                 code_generate_prompt: str, output_dir: str, total_player_number: int,
+                 good_number: int, bad_number: int, k: int, informativeness_prompt: str,
+                 generate_response_prompt: str, generate_leader_response_prompt: str,
+                 informativeness_n: int, select_question_prompt: str, question_list: list,
+                 ask_question_prompt: str, retrieval_model, generate_answer_prompt: str,
+                 reflection_prompt: str, llama_model, llama_tokenizer,
+                 model, tokenizer, temperature,
+                 use_summary: bool = False, **kwargs):
+        CodeActAgentforWerewolf.__init__(self, name, role, rule_role_prompt,
+                              private_information, current_team_number,
+                              code_generate_prompt, output_dir, total_player_number,
+                              good_number, bad_number, k, informativeness_prompt,
+                              generate_response_prompt, generate_leader_response_prompt,
+                              informativeness_n, select_question_prompt, question_list, ask_question_prompt,
+                              retrieval_model, generate_answer_prompt, reflection_prompt,
+                              llama_model, llama_tokenizer,
                               use_summary, **kwargs)
         ChatGLMMessageSender.__init__(self, model, tokenizer, temperature, **kwargs)
 

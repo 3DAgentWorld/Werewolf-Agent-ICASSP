@@ -70,6 +70,7 @@ def run_game(game_output_dir: str, camp, game_idx):
                 suggestion = experience.get("suggestion", "None")
             name = f'player {i + 1}'
             role = roles[i]
+            player_mapping[name] = role
             role_system_prompt = system_prompt.format(name=name, role=role, strategy=role_strategy,
                                                       suggestion=suggestion, other_strategy=other_strategy)
             player_args.append(
@@ -95,6 +96,7 @@ def run_game(game_output_dir: str, camp, game_idx):
                 previous_exp_pool = read_json(load_file)
             name = f"player {i + 1}"
             role = roles[i]
+            player_mapping[name] = role
             player_args.append(
                 (
                     ChatGPT_CGAgent, {"name": name, "role": role, "rule_role_prompt": rule_role_prompt,

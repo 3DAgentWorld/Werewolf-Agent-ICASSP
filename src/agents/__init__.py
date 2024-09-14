@@ -6,7 +6,13 @@
 #
 # describe:
 #
-from .llm_agent import ChatGPT_CGAgent, ChatGPT_SAPARAgent_ForAvalon, ChatGPT_SAPARAgent_ForWerewolf, \
-    ChatGLM_GraphThoughtAgent
-from .llm_agent import ChatGLM_CGAgent, ChatGLM_SAPARAgent_ForAvalon, ChatGLM_SAPARAgent_ForWerewolf, \
-    ChatGLM_GraphCGAgent
+
+from .abs_agent import Agent
+
+try:
+    from .llm_agent import ChatGPT_CGAgent, ChatGPT_SAPARAgent_ForAvalon, ChatGPT_SAPARAgent_ForWerewolf, \
+        ChatGLM_GraphThoughtAgent
+    from .llm_agent import ChatGLM_CGAgent, ChatGLM_SAPARAgent_ForAvalon, ChatGLM_SAPARAgent_ForWerewolf, \
+        ChatGLM_GraphCGAgent
+except Exception:
+    pass

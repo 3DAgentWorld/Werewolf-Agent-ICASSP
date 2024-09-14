@@ -1,12 +1,34 @@
-# Run Werewolf
-Battle with Baseline in different camps
+# DVM: Werewolf Agent
 
-Good Side
-```shell
-python run_werewolf_battle.py --exp_name battle --camp villager --game_count 10 --start_game_idx 0 
+Implementation of DVM for controllable LLM agents in Werewolf.
+
+## Requirements
+
+```bash
+pip install -r requirements.txt
 ```
 
-Evil Side
-```shell
-python run_werewolf_battle.py --exp_name battle --camp werewolf --game_count 10 --start_game_idx 0 
+## Model
+
+The paper uses ChatGLM3-6B as the base model for Predictor and Discussor. Update `configs/dvm_chatglm3-6b.yaml` if your path differs.
+
+## Run
+
+Start vllm server first:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python -m vllm.entrypoints.openai.api_server --model /path/to/ChatGLM3-6B --port 8000
+```
+
+Run evaluation:
+
+```bash
+python run_dvm_werewolf.py --camp villager --game_count 10 --wr_cons 0.5
+```
+
+For different win rate constraints:
+
+```bash
+python run_dvm_werewolf.py --camp villager --game_count 30 --wr_cons 0.3
+python run_dvm_werewolf.py --camp villager --game_count 30 --wr_cons 0.7
 ```

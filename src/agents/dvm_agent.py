@@ -45,12 +45,14 @@ class DVMAgent(Agent):
         self.votings = []
         self.decision_chain = []
         self.dc_reward = DecisionChainReward()
+        self.dead_players = set()
 
     def step(self, message: str) -> str:
         phase, instruction = message.split("|", 1)
         phase_num = re.findall(r"\d+", phase)
         phase_num = phase_num[-1] if phase_num else "0"
 
+        self.update_dead_players(instruction)
         discussion_text = "\n".join(self.discussions[-20:])
         voting_text = "\n".join(self.votings[-20:])
 
@@ -95,20 +97,30 @@ class DVMAgent(Agent):
         lower = content.lower()
         if "vote" in lower:
             self.votings.append(f"{name}: {content}")
-        elif "discuss" in lower or "talk" in lower or "statement" in lower:
-            self.discussions.append(f"{name}: {content}")
         else:
             self.discussions.append(f"{name}: {content}")
+
+    def update_dead_players(self, instruction):
+        for i in range(1, self.player_nums + 1):
+            p = f"player {i}"
+            if "died" in instruction.lower() or "killed" in instruction.lower() or "eliminated" in instruction.lower():
+                if p in instruction:
+                    self.dead_players.add(p)
 
     def is_discussion(self, instruction):
         lower = instruction.lower()
         return "talk" in lower or "discuss" in lower or "statement" in lower
 
     def format_action_response(self, instruction, action_str):
-        if "agree" in instruction.lower() or "disagree" in instruction.lower():
-            return "agree" if "player" in action_str.lower() else action_str
-        if "yes" in action_str.lower() or "no" in action_str.lower():
-            return action_str
+        lower = instruction.lower()
+        if "agree" in lower or "disagree" in lower:
+            if "disagree" in action_str.lower():
+                return "disagree"
+            return "agree"
+        if "antidote" in lower or "save" in lower:
+            if "no" in action_str.lower():
+                return "no"
+            return "yes"
         nums = re.findall(r"\d+", action_str)
         if nums:
             return f"player {nums[-1]}"
@@ -116,10 +128,7 @@ class DVMAgent(Agent):
 
     def build_state_vec(self, phase, instruction):
         vec = [0.0] * 32
-        alive = self.player_nums
-        for msg in self.memory.get("message", []):
-            if "killed" in msg.lower() or "eliminated" in msg.lower():
-                alive -= 1
+        alive = self.player_nums - len(self.dead_players)
         vec[0] = float(alive) / self.player_nums
         vec[1] = 1.0 if "Werewolf" in self.role else 0.0
         vec[2] = 1.0 if "Seer" in self.role else 0.0
@@ -129,22 +138,17 @@ class DVMAgent(Agent):
         return vec
 
     def build_candidate_actions(self, instruction):
-        actions = [f"player {i + 1}" for i in range(self.player_nums)]
-        actions += ["yes", "no"]
-        return actions
+        lower = instruction.lower()
+        if "agree" in lower or "disagree" in lower:
+            return ["agree", "disagree"]
+        if "antidote" in lower or ("save" in lower and "witch" in lower):
+            return ["yes", "no"]
+        return [f"player {i + 1}" for i in range(self.player_nums)]
 
     def build_action_mask(self, candidate_actions):
-        alive = set()
-        for msg in self.memory.get("message", []):
-            for i in range(1, self.player_nums + 1):
-                p = f"player {i}"
-                if p in msg and ("alive" in msg.lower() or "pass" not in msg.lower()):
-                    alive.add(p)
-        if not alive:
-            alive = set([f"player {i + 1}" for i in range(self.player_nums)])
         mask = []
         for a in candidate_actions:
-            if a.startswith("player") and a not in alive:
+            if a.startswith("player") and (a in self.dead_players or a == self.name):
                 mask.append(1.0)
             else:
                 mask.append(0.0)

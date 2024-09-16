@@ -28,14 +28,14 @@ class DVMAgent(Agent):
         os.makedirs(output_dir, exist_ok=True)
         self.win_rate_constraint = win_rate_constraint
         self.player_nums = player_nums
+        self.action_dim = player_nums + 2
 
         self.predictor = Predictor(model, api_key, base_url)
         self.discussor = Discussor(model, api_key, base_url)
 
         state_dim = 32
         pred_dim = (player_nums - 1) * 5
-        action_dim = player_nums + 2
-        self.decider = Decider(state_dim, pred_dim, action_dim).to(device)
+        self.decider = Decider(state_dim, pred_dim, self.action_dim).to(device)
         self.random_decider = RandomDecider()
         self.use_random = kwargs.get("use_random", True)
         self.device = device
@@ -62,8 +62,7 @@ class DVMAgent(Agent):
         )
 
         state_vec = self.build_state_vec(phase, instruction)
-        candidate_actions = self.build_candidate_actions(instruction)
-        action_mask = self.build_action_mask(candidate_actions)
+        candidate_actions, action_mask = self.build_actions(instruction)
 
         if self.use_random:
             action_str, action_idx = self.random_decider.decide(
@@ -101,10 +100,11 @@ class DVMAgent(Agent):
             self.discussions.append(f"{name}: {content}")
 
     def update_dead_players(self, instruction):
-        for i in range(1, self.player_nums + 1):
-            p = f"player {i}"
-            if "died" in instruction.lower() or "killed" in instruction.lower() or "eliminated" in instruction.lower():
-                if p in instruction:
+        lower = instruction.lower()
+        if "died" in lower or "killed" in lower or "eliminated" in lower:
+            for i in range(1, self.player_nums + 1):
+                p = f"player {i}"
+                if p in instruction and p != self.name:
                     self.dead_players.add(p)
 
     def is_discussion(self, instruction):
@@ -117,7 +117,7 @@ class DVMAgent(Agent):
             if "disagree" in action_str.lower():
                 return "disagree"
             return "agree"
-        if "antidote" in lower or "save" in lower:
+        if "antidote" in lower or ("save" in lower and "witch" in lower):
             if "no" in action_str.lower():
                 return "no"
             return "yes"
@@ -137,22 +137,27 @@ class DVMAgent(Agent):
         vec[5] = float(self.win_rate_constraint)
         return vec
 
-    def build_candidate_actions(self, instruction):
+    def build_actions(self, instruction):
         lower = instruction.lower()
         if "agree" in lower or "disagree" in lower:
-            return ["agree", "disagree"]
-        if "antidote" in lower or ("save" in lower and "witch" in lower):
-            return ["yes", "no"]
-        return [f"player {i + 1}" for i in range(self.player_nums)]
+            base = ["agree", "disagree"]
+        elif "antidote" in lower or ("save" in lower and "witch" in lower):
+            base = ["yes", "no"]
+        else:
+            base = [f"player {i + 1}" for i in range(self.player_nums)]
 
-    def build_action_mask(self, candidate_actions):
         mask = []
-        for a in candidate_actions:
+        for a in base:
             if a.startswith("player") and (a in self.dead_players or a == self.name):
                 mask.append(1.0)
             else:
                 mask.append(0.0)
-        return mask
+
+        while len(base) < self.action_dim:
+            base.append("pass")
+            mask.append(1.0)
+
+        return base, mask
 
     def update_memory(self, name, message, phase):
         self.memory["name"].append(name)

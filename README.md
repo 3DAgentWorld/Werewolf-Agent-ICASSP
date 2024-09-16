@@ -32,3 +32,8 @@ For different win rate constraints:
 python run_dvm_werewolf.py --camp villager --game_count 30 --wr_cons 0.3
 python run_dvm_werewolf.py --camp villager --game_count 30 --wr_cons 0.7
 ```
+
+## Notes
+
+- The paper's experiments use a 9-player setup (3 werewolves, 1 seer, 1 witch, 1 hunter, 3 villagers). This repo inherits the 7-player setup (with Guard instead of Hunter) from the original Werewolf codebase.
+- For quick testing with vLLM, you can override `--model` and `--base_url` to use any OpenAI-compatible endpoint.

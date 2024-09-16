@@ -141,7 +141,7 @@ class DVMAgent(Agent):
         lower = instruction.lower()
         if "agree" in lower or "disagree" in lower:
             base = ["agree", "disagree"]
-        elif "antidote" in lower or ("save" in lower and "witch" in lower):
+        elif "antidote" in lower or "[yes, no]" in lower:
             base = ["yes", "no"]
         else:
             base = [f"player {i + 1}" for i in range(self.player_nums)]

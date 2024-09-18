@@ -15,21 +15,21 @@ from src.utils import create_dir
 
 api_key = "EMPTY"
 base_url = "http://localhost:8000/v1"
-roles = ["Werewolf", "Werewolf", "Villager", "Villager", "Seer", "Guard", "Witch"]
+roles = ["Werewolf", "Werewolf", "Werewolf", "Villager", "Villager", "Villager", "Seer", "Witch", "Hunter"]
 model_name = "ChatGLM3-6B"
 
 
-def run_game(game_output_dir, camp, game_idx, wr_cons):
+def run_game(game_output_dir, camp, game_idx, wr_cons, decider_path):
     create_dir(game_output_dir.format(game_idx))
 
     mode = "watch"
     language = "english"
     ai_model = model_name
-    player_nums = 7
+    player_nums = 9
     player_mapping = {}
     random.shuffle(roles)
     if camp == "villager":
-        camp_role = ["Villager", "Seer", "Guard", "Witch"]
+        camp_role = ["Villager", "Seer", "Witch", "Hunter"]
     else:
         camp_role = ["Werewolf"]
 
@@ -54,7 +54,8 @@ def run_game(game_output_dir, camp, game_idx, wr_cons):
                     "output_dir": log_dir,
                     "win_rate_constraint": wr_cons,
                     "player_nums": player_nums,
-                    "use_random": True
+                    "use_random": True,
+                    "decider_path": decider_path
                 }
             )
         )
@@ -80,6 +81,8 @@ def parse_args():
     parser.add_argument("--model", type=str, default="ChatGLM3-6B")
     parser.add_argument("--base_url", type=str, default="http://localhost:8000/v1")
     parser.add_argument("--api_key", type=str, default="EMPTY")
+    parser.add_argument("--decider_path", type=str, default="checkpoints/dvm/decider.pt",
+                        help="Path to a trained Decider checkpoint. If it does not exist, the program raises an error.")
     return parser.parse_args()
 
 
@@ -91,7 +94,7 @@ def main():
     api_key = args.api_key
     for game_round in range(args.start_game_idx, args.game_count):
         output_dir = f"playing_log/werewolf/dvm/{args.exp_name}-{args.camp}-wr{int(args.wr_cons * 100)}" + "-game_{}"
-        run_game(output_dir, camp=args.camp, game_idx=game_round, wr_cons=args.wr_cons)
+        run_game(output_dir, camp=args.camp, game_idx=game_round, wr_cons=args.wr_cons, decider_path=args.decider_path)
         print("game finish!!! game index {}".format(game_round))
 
 

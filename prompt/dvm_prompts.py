@@ -59,7 +59,8 @@ role_introduction = {
     "Villager": "You belong to the Villager camp. You don't possess any special abilities, but your keen observation and judgment are crucial in identifying the Werewolves.",
     "Seer": "You are the Seer. Each night, you can choose one player to secretly investigate. You will learn whether that player is a Werewolf or not.",
     "Guard": "You are the Guard. Each night, you can choose one player to protect. If the Werewolves target the player you protect, they will be saved from elimination.",
-    "Witch": "You are the Witch. You have poison and antidote. Once per game, you can use the antidote to save a player who has been attacked by the Werewolves. Additionally, you can use the poison to eliminate one player during the night."
+    "Witch": "You are the Witch. You have poison and antidote. Once per game, you can use the antidote to save a player who has been attacked by the Werewolves. Additionally, you can use the poison to eliminate one player during the night.",
+    "Hunter": "You are the Hunter. When you are eliminated, you can choose one player to shoot and eliminate immediately."
 }
 
 role_target = {
@@ -67,5 +68,6 @@ role_target = {
     "Villager": "Win the game by eliminating all the werewolf.",
     "Seer": "Help villager camp win the game by eliminating all the werewolf.",
     "Guard": "Help villager camp win the game by eliminating all the werewolf.",
-    "Witch": "Help villager camp win the game by eliminating all the werewolf."
+    "Witch": "Help villager camp win the game by eliminating all the werewolf.",
+    "Hunter": "Help villager camp win the game by eliminating all the werewolf."
 }

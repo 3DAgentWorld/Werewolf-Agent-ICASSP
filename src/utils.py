@@ -30,6 +30,8 @@ COLOR = {
     "player 5": Fore.LIGHTGREEN_EX,
     "player 6": Fore.CYAN,
     "player 7": Fore.MAGENTA,
+    "player 8": Fore.WHITE,
+    "player 9": Fore.LIGHTBLACK_EX,
 }
 
 

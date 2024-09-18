@@ -9,6 +9,8 @@ import os
 import re
 import json
 
+import torch
+
 from .abs_agent import Agent
 from ..models.predictor import Predictor
 from ..models.decider import Decider, RandomDecider
@@ -18,8 +20,14 @@ from ..utils import write_json
 
 
 class DVMAgent(Agent):
+    PHASE_LIST = [
+        "other", "werewolf_kill", "werewolf_agree", "witch_antidote",
+        "witch_poison", "seer_verify", "hunter_shoot", "vote", "discussion", "eliminated"
+    ]
+
     def __init__(self, name, role, model, api_key="EMPTY", base_url="http://localhost:8000/v1",
-                 output_dir="./logs", win_rate_constraint=0.5, player_nums=7, device="cuda", **kwargs):
+                 output_dir="./logs", win_rate_constraint=0.5, player_nums=7, device="cuda",
+                 decider_path=None, dump_steps=False, **kwargs):
         super().__init__(name=name, role=role, **kwargs)
         self.model = model
         self.api_key = api_key
@@ -34,11 +42,24 @@ class DVMAgent(Agent):
         self.discussor = Discussor(model, api_key, base_url)
 
         state_dim = 32
-        pred_dim = (player_nums - 1) * 5
+        pred_dim = (player_nums - 1) * 6
         self.decider = Decider(state_dim, pred_dim, self.action_dim).to(device)
         self.random_decider = RandomDecider()
         self.use_random = kwargs.get("use_random", True)
         self.device = device
+        self.decider_path = decider_path
+        self.dump_steps = dump_steps
+        self.step_data_file = os.path.join(output_dir, "step_data.jsonl") if dump_steps else None
+
+        if decider_path is not None:
+            if not os.path.exists(decider_path):
+                raise FileNotFoundError(
+                    f"Decider checkpoint not found: {decider_path}. "
+                    f"Generate training data and train a decider, or provide a valid checkpoint path."
+                )
+            self.decider.load_state_dict(torch.load(decider_path, map_location=device))
+            self.use_random = False
+            print(f"[{self.name}] Loaded decider from {decider_path}")
 
         self.memory = {"name": [], "message": [], "phase": []}
         self.discussions = []
@@ -74,6 +95,25 @@ class DVMAgent(Agent):
             )
 
         self.decision_chain.append(action_idx)
+
+        if self.dump_steps:
+            step_record = {
+                "player": self.name,
+                "role": self.role,
+                "phase": phase,
+                "instruction": instruction,
+                "state_vec": state_vec,
+                "pred_vec": pred_vec,
+                "wr_cons": self.win_rate_constraint,
+                "candidate_actions": candidate_actions,
+                "action_mask": action_mask,
+                "action_idx": action_idx,
+                "action_str": action_str,
+                "predictions": predictions,
+                "use_random": self.use_random,
+            }
+            with open(self.step_data_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(step_record, ensure_ascii=False) + "\n")
 
         if self.is_discussion(instruction):
             game_state = f"phase: {phase}\ninstruction: {instruction}\npredictions: {json.dumps(predictions, ensure_ascii=False)}"
@@ -134,7 +174,32 @@ class DVMAgent(Agent):
         vec[2] = 1.0 if "Seer" in self.role else 0.0
         vec[3] = 1.0 if "Witch" in self.role else 0.0
         vec[4] = 1.0 if "Guard" in self.role else 0.0
-        vec[5] = float(self.win_rate_constraint)
+        vec[5] = 1.0 if "Hunter" in self.role else 0.0
+        vec[6] = float(self.win_rate_constraint)
+
+        lower = instruction.lower()
+        if "agree" in lower or "disagree" in lower:
+            phase_name = "werewolf_agree"
+        elif "antidote" in lower:
+            phase_name = "witch_antidote"
+        elif "poison" in lower:
+            phase_name = "witch_poison"
+        elif "verify" in lower or "seer" in lower:
+            phase_name = "seer_verify"
+        elif "shoot" in lower:
+            phase_name = "hunter_shoot"
+        elif "vote" in lower:
+            phase_name = "vote"
+        elif "kill" in lower:
+            phase_name = "werewolf_kill"
+        elif "talk" in lower or "discuss" in lower or "statement" in lower:
+            phase_name = "discussion"
+        elif "eliminated" in lower or "last" in lower:
+            phase_name = "eliminated"
+        else:
+            phase_name = "other"
+        if phase_name in self.PHASE_LIST:
+            vec[7 + self.PHASE_LIST.index(phase_name)] = 1.0
         return vec
 
     def build_actions(self, instruction):
@@ -153,9 +218,13 @@ class DVMAgent(Agent):
             else:
                 mask.append(0.0)
 
+        # "pass" is a real option for poison and hunter shoot, but not for
+        # werewolf kill / vote / seer verify where the game engine will fall
+        # back to random if pass is returned.
+        allow_pass = "poison" in lower or "shoot" in lower
         while len(base) < self.action_dim:
             base.append("pass")
-            mask.append(1.0)
+            mask.append(0.0 if allow_pass else 1.0)
 
         return base, mask
 

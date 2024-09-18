@@ -30,11 +30,13 @@ class Decider(nn.Module):
 
     def decide(self, state_vec, pred_vec, wr_cons, action_mask, candidate_actions):
         with torch.no_grad():
-            s = torch.tensor(state_vec, dtype=torch.float32).unsqueeze(0)
-            p = torch.tensor(pred_vec, dtype=torch.float32).unsqueeze(0)
-            w = torch.tensor([wr_cons], dtype=torch.float32).unsqueeze(0)
+            device = next(self.parameters()).device
+            s = torch.tensor(state_vec, dtype=torch.float32).unsqueeze(0).to(device)
+            p = torch.tensor(pred_vec, dtype=torch.float32).unsqueeze(0).to(device)
+            w = torch.tensor([wr_cons], dtype=torch.float32).unsqueeze(0).to(device)
+            mask = torch.tensor(action_mask, dtype=torch.float32).unsqueeze(0).to(device)
             logits = self.forward(s, p, w)
-            masked_logits = logits - torch.tensor(action_mask, dtype=torch.float32) * 1e9
+            masked_logits = logits - mask * 1e9
             probs = F.softmax(masked_logits, dim=-1)
             action_idx = torch.multinomial(probs, 1).item()
             return candidate_actions[action_idx], action_idx

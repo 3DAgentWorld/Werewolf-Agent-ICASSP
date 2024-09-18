@@ -1,21 +1,23 @@
 model_name: "ChatGLM3-6B"
-model_path: "/home/lanyihuai/ModelDownload/dataroot/model/THUDM/chatglm3-6b-32k"
+model_path: "/path/to/ChatGLM3-6B"
 api_key: "EMPTY"
 base_url: "http://localhost:8000/v1"
-player_nums: 7
+player_nums: 9
 roles:
   - "Werewolf"
   - "Werewolf"
+  - "Werewolf"
+  - "Villager"
   - "Villager"
   - "Villager"
   - "Seer"
-  - "Guard"
   - "Witch"
+  - "Hunter"
 
 decider:
   state_dim: 32
-  pred_dim: 30
-  action_dim: 9
+  pred_dim: 48
+  action_dim: 11
   hidden_dim: 128
 
 training:

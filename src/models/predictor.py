@@ -39,7 +39,7 @@ class Predictor:
     def predict_to_vector(self, name, role, discussion, voting, player_list):
         preds = self.predict(name, role, discussion, voting)
         vec = []
-        role_list = ["Werewolf", "Villager", "Seer", "Guard", "Witch"]
+        role_list = ["Werewolf", "Villager", "Seer", "Guard", "Witch", "Hunter"]
         for p in player_list:
             if p == name:
                 continue

@@ -6,7 +6,8 @@
       "villager": "Villager",
       "seer": "Seer",
       "guard": "Guard",
-      "witch": "Witch"
+      "witch": "Witch",
+      "hunter": "Hunter"
     },
       "role_introduce": {
       },
@@ -26,7 +27,9 @@
     },
     "config_9": {
       "game_introduce": "",
-      "role": []
+      "role": ["Werewolf","Werewolf","Werewolf","Villager","Villager","Villager","Seer","Witch","Hunter"],
+      "villager_camp": ["Villager"],
+      "werewolf_camp": ["Werewolf"]
     },
     "config_10": {
       "game_introduce": "",
@@ -42,6 +45,7 @@
     },
     "host_instruction": {
       "start_game_prompt_7": "Now the game starts! In this game, we have {werewolf_count} werewolf(s), {villager_count} villager(s), {guard_count} guard(s), {witch_count} witch(s), {seer_count} seer(s)",
+      "start_game_prompt_9": "Now the game starts! In this game, we have {werewolf_count} werewolf(s), {villager_count} villager(s), {witch_count} witch(s), {seer_count} seer(s), {hunter_count} hunter(s)",
       "night_start": "It's dark, everyone close your eyes. I will talk with you/your team secretly at night.",
       "werewolf_open_eyes": "Werewolves, please open your eyes! I secretly tell you that {werewolf_players} are all of the {werewolf_count} werewolves! Keep in mind you are teammates. The rest players are not werewolves.",
       "first_werewolf_kill": "The fist werewolf, you {player}, now please vote and tell your teammates which of the players should be killed tonight. The first werewolf, you, randomly choose one from the following living options please: {options}",
@@ -53,6 +57,9 @@
       "witch_step_public": "You witch, please open your eyes! A player will be killed tonight. You have a bottle of antidote, do you want to save him? You have a bottle of poison, who are you going to kill tonight?",
       "seer_step": "You seer, {player}, please open your eyes! Who are you going to verify its identity tonight? Choose only one from the following living options: {options}",
       "seer_step_public": "You seer, please open your eyes! Who are you going to verify its identity tonight?",
+      "hunter_step": "You hunter, {player}, please open your eyes! If you are eliminated, you can choose one player to shoot. Remember your ability.",
+      "hunter_shoot_step": "You hunter {player}, you are eliminated. Choose one player from the following living options to shoot: {options}.",
+      "hunter_shoot_public": "The hunter has chosen to shoot.",
       "seen_werewolf": "{player} is a werewolf!",
       "seen_other": "{player} is not a werewolf!",
       "daytime_start": "The sun rose. Everyone opens your eyes except those who had been killed.",
@@ -87,6 +94,10 @@
         "count": "1"
       },
       "seer_step": {
+        "type": "number",
+        "count": "1"
+      },
+      "hunter_shoot_step": {
         "type": "number",
         "count": "1"
       },

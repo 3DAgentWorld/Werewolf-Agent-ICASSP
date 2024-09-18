@@ -68,6 +68,7 @@ class Werewolf(Game):
         self.seer_player = None
         self.guard_player = None
         self.witch_player = None
+        self.hunter_player = None
         self.werewolf_players = []
         self.villager_players = []
 
@@ -133,8 +134,12 @@ class Werewolf(Game):
         self.roles = [player_i.role for player_i in self.player_list]
         idx = self.roles.index(self.role_mapping['seer'])
         self.seer_player = self.player_list[idx].name
-        idx = self.roles.index(self.role_mapping['guard'])
-        self.guard_player = self.player_list[idx].name
+        if 'guard' in self.role_mapping and self.role_mapping['guard'] in self.roles:
+            idx = self.roles.index(self.role_mapping['guard'])
+            self.guard_player = self.player_list[idx].name
+        if 'hunter' in self.role_mapping and self.role_mapping['hunter'] in self.roles:
+            idx = self.roles.index(self.role_mapping['hunter'])
+            self.hunter_player = self.player_list[idx].name
         idx = self.roles.index(self.role_mapping['witch'])
         self.witch_player = self.player_list[idx].name
         for idx, role in enumerate(self.roles):
@@ -178,11 +183,15 @@ class Werewolf(Game):
         game_continue = True
 
         # night phase
-        # killed_players = ['player 2']
         killed_players = self.night_process(day_count)
+        hunter_killed = self.hunter_player in killed_players
         for player_i in killed_players:
             if player_i in self.alive_players:
                 self.alive_players.remove(player_i)
+        if hunter_killed and not self.game_end():
+            shoot_player = self.hunter_step(day_count, self.hunter_player)
+            if shoot_player and shoot_player in self.alive_players:
+                self.alive_players.remove(shoot_player)
         if self.game_end():
             game_continue = False
 
@@ -190,6 +199,10 @@ class Werewolf(Game):
         eliminated_player = self.daytime_process(day_count, killed_players)
         if eliminated_player != "pass" and eliminated_player in self.alive_players:
             self.alive_players.remove(eliminated_player)
+        if eliminated_player == self.hunter_player and not self.game_end():
+            shoot_player = self.hunter_step(day_count, self.hunter_player)
+            if shoot_player and shoot_player in self.alive_players:
+                self.alive_players.remove(shoot_player)
         if self.game_end():
             game_continue = False
 
@@ -216,7 +229,7 @@ class Werewolf(Game):
         self.process_list.append({'Host': instruction})
 
         # guard step
-        guard_protect_player = self.guard_step(day_count)
+        guard_protect_player = self.guard_step(day_count) if self.guard_player else 'pass'
 
         # werewolf step
         werewolf_kill_player = self.werewolf_step(day_count)
@@ -334,22 +347,22 @@ class Werewolf(Game):
             # random werewolf order
             random.shuffle(werewolf_order)
 
-            player_i = werewolf_order[0]
+            first_wolf = werewolf_order[0]
             first_werewolf_kill_prompt = self.host_instruction.get('first_werewolf_kill', '')
             res_rule = copy.deepcopy(self.response_rule.get('first_werewolf_kill', {}))
-            instruction = first_werewolf_kill_prompt.format(player=player_i, options=alive_players + ['pass'])
-            output = self.players[player_i].step(message=f"Day {day_count}, Night Phase |" + instruction)
+            instruction = first_werewolf_kill_prompt.format(player=first_wolf, options=alive_players + ['pass'])
+            output = self.players[first_wolf].step(message=f"Day {day_count}, Night Phase |" + instruction)
 
             self.process_list.append(
                 {'Host': instruction,
-                 f"{player_i}({self.player_mapping[player_i]})": output,
+                 f"{first_wolf}({self.player_mapping[first_wolf]})": output,
                  "response_rule": res_rule})
             print_text_animated(Fore.WHITE + f"Host:\n\n{instruction}\n\n")
-            print_text_animated(COLOR[player_i] + f"{player_i}({self.player_mapping[player_i]}):\n\n{output}\n\n")
+            print_text_animated(COLOR[first_wolf] + f"{first_wolf}({self.player_mapping[first_wolf]}):\n\n{output}\n\n")
 
-            for player_i in werewolf_order[1:]:
-                self.players[player_i].receive(name="host", message=f"Day {day_count}, Night Phase |" + instruction)
-                self.players[player_i].receive(name=werewolf_order[0],
+            for teammate in werewolf_order[1:]:
+                self.players[teammate].receive(name="host", message=f"Day {day_count}, Night Phase |" + instruction)
+                self.players[teammate].receive(name=first_wolf,
                                                message=f"Day {day_count}, Night Phase |" + output)
 
             if self.player_extractor is not None:
@@ -362,12 +375,12 @@ class Werewolf(Game):
             kill_player = f"player {s}" if s != "pass" else s
             agreements = 1
 
-            for player_j in werewolf_order[1:]:
+            for teammate in werewolf_order[1:]:
                 other_werewolf_kill_prompt = self.host_instruction.get('other_werewolf_kill', '')
                 res_rule = copy.deepcopy(self.response_rule.get('other_werewolf_kill', {}))
-                instruction = other_werewolf_kill_prompt.format(player=player_j, first_player=player_i,
+                instruction = other_werewolf_kill_prompt.format(player=teammate, first_player=first_wolf,
                                                                 target_player=kill_player)
-                output = self.players[player_j].step(message=f"Day {day_count}, Night Phase |" + instruction)
+                output = self.players[teammate].step(message=f"Day {day_count}, Night Phase |" + instruction)
                 if self.killing_agreement_extractor is not None:
                     s = self.killing_agreement_extractor.step(f"Question：{instruction}\nAnswer：{output}")
                     all_match = re.findall('(true|false)', s.lower())
@@ -380,10 +393,10 @@ class Werewolf(Game):
 
                 self.process_list.append(
                     {'Host': instruction,
-                     f"{player_j}({self.player_mapping[player_j]})": output,
+                     f"{teammate}({self.player_mapping[teammate]})": output,
                      "response_rule": res_rule})
                 print_text_animated(Fore.WHITE + f"Host:\n\n{instruction}\n\n")
-                print_text_animated(COLOR[player_i] + f"{player_i}({self.player_mapping[player_i]}):\n\n{output}\n\n")
+                print_text_animated(COLOR[teammate] + f"{teammate}({self.player_mapping[teammate]}):\n\n{output}\n\n")
             if agreements >= len(werewolf_order) / 2:
                 kill_done = True
             else:
@@ -654,6 +667,51 @@ class Werewolf(Game):
                                                    message=f"Day {day_count}, Night Phase |" + output)
         return
 
+    def hunter_step(self, day_count, hunter_player):
+        if not hunter_player or hunter_player not in self.players:
+            return None
+        alive_players = copy.deepcopy(self.alive_players)
+        if not alive_players:
+            return None
+
+        hunter_step_prompt = self.host_instruction.get('hunter_step', '')
+        instruction = hunter_step_prompt.format(player=hunter_player)
+        for player_i in self.alive_players:
+            self.players[player_i].receive(name="host", message=f"Day {day_count}, Night Phase |" + instruction)
+        self.process_list.append({'Host': instruction})
+        print_text_animated(Fore.WHITE + f"Host:\n\n{instruction}\n\n")
+
+        hunter_shoot_prompt = self.host_instruction.get('hunter_shoot_step', '')
+        res_rule = copy.deepcopy(self.response_rule.get('hunter_shoot_step', {}))
+        instruction = hunter_shoot_prompt.format(player=hunter_player, options=alive_players + ['pass'])
+        output = self.players[hunter_player].step(message=f"Day {day_count}, Night Phase |" + instruction)
+
+        self.process_list.append(
+            {'Host': instruction,
+             f"{hunter_player}({self.player_mapping[hunter_player]})": output,
+             "response_rule": res_rule})
+        print_text_animated(Fore.WHITE + f"Host:\n\n{instruction}\n\n")
+        print_text_animated(COLOR[hunter_player] + f"{hunter_player}({self.player_mapping[hunter_player]}):\n\n{output}\n\n")
+
+        if self.player_extractor is not None:
+            s = self.player_extractor.step(f"Question：{instruction}\nAnswer：{output}")
+            all_match = re.findall('\d+', s)
+            s = all_match[-1] if all_match else "pass"
+        else:
+            all_match = re.findall('\d+', output)
+            s = all_match[-1] if all_match else "pass"
+        shoot_player = f"player {s}" if s != "pass" else s
+
+        hunter_shoot_public = self.host_instruction.get('hunter_shoot_public', '')
+        instruction = hunter_shoot_public
+        for player_i in self.alive_players:
+            if player_i != hunter_player:
+                self.players[player_i].receive(name="host", message=f"Day {day_count}, Night Phase |" + instruction)
+        self.process_list.append({'Host': instruction})
+        print_text_animated(Fore.WHITE + f"Host:\n\n{instruction}\n\n")
+
+        return shoot_player
+
     @staticmethod
     def return_max_equal_voting(voting):
         counter = Counter(voting)
@@ -673,7 +731,7 @@ class Werewolf(Game):
                 villager_all_out = False
 
         special_all_out = True
-        for player_i in [self.witch_player, self.seer_player, self.guard_player]:
+        for player_i in [self.witch_player, self.seer_player, self.guard_player, self.hunter_player]:
             if player_i in self.alive_players:
                 special_all_out = False
         return werewolf_all_out or villager_all_out or special_all_out
@@ -689,12 +747,12 @@ class Werewolf(Game):
             if player_i in self.alive_players:
                 villager_all_out = False
         special_all_out = True
-        for player_i in [self.witch_player, self.seer_player, self.guard_player]:
+        for player_i in [self.witch_player, self.seer_player, self.guard_player, self.hunter_player]:
             if player_i in self.alive_players:
                 special_all_out = False
         if werewolf_all_out and not villager_all_out and not special_all_out:
             winner = "Villager"
-            self.winners = ['Villager', 'Seer', 'Guard', 'Witch']
+            self.winners = ['Villager', 'Seer', 'Guard', 'Witch', 'Hunter']
         elif not werewolf_all_out and (villager_all_out or special_all_out):
             winner = "Werewolf"
             self.winners = ['Werewolf']
